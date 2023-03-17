@@ -23,7 +23,24 @@ local config = {
   end,
 }
 
-local function find_word_under_cursor(opts)
+---Escape all wildcard/special characters in a string
+local function escape(term)
+  -- stylua: ignore start
+  return term:gsub("%%", "\\%%")
+             :gsub("_" , "\\_")
+             :gsub("+" , "\\+")
+             :gsub("%." , "\\.")
+  -- stylua: ignore end
+end
+
+local function format_lang(ft)
+  if ft == "lua" then
+    ft = string.gsub(_VERSION, "%s", "_")
+  end
+  return escape(ft)
+end
+
+local function run_query(pattern, opts)
   opts = opts or {}
 
   local query_command = assert(opts.query_command or config.query_command, "Must pass `query_command`")
@@ -49,14 +66,20 @@ local function find_word_under_cursor(opts)
   assert(type(preview_command) == "function", "`preview_command` must be a function")
 
   local lines = {}
-  local cword = vim.fn.expand "<cword>"
+  local args = {}
+  if pattern then
+    args = vim.list_extend(args, { pattern })
+    -- N.B. We can only pass a docset if we also pass a pattern
+    local lang = format_lang(vim.bo.filetype)
+    if lang then
+      args = vim.list_extend(args, { lang })
+    end
+  end
 
   Job
     :new({
       command = query_command(opts),
-      args = {
-        cword,
-      },
+      args = args,
       on_stdout = function(_, data, _)
         table.insert(lines, data)
       end,
@@ -115,11 +138,21 @@ local function find_word_under_cursor(opts)
   }):find()
 end
 
+local function find_word_under_cursor(opts)
+  local cword = vim.fn.expand "<cword>"
+  run_query(cword, opts)
+end
+
+local function query(opts)
+  run_query(nil, opts)
+end
+
 return telescope.register_extension {
   setup = function(opts)
     config = vim.tbl_extend("force", config, opts)
   end,
   exports = {
     find_word_under_cursor = find_word_under_cursor,
+    query = query,
   },
 }

@@ -68,6 +68,7 @@ local function run_query(pattern, opts)
 
   local lines = {}
   local args = {}
+  pattern = pattern or " " -- N.B. Whitespace is a wildcard
   if pattern then
     args = vim.list_extend(args, { pattern })
     -- N.B. We can only pass a docset if we also pass a pattern

@@ -5,6 +5,7 @@ end
 
 local actions = require "telescope.actions"
 local action_state = require "telescope.actions.state"
+local conf = require("telescope.config").values
 local finders = require "telescope.finders"
 local pickers = require "telescope.pickers"
 local previewers = require "telescope.previewers"
@@ -135,6 +136,7 @@ local function run_query(pattern, opts)
         putils.job_maker(command, self.state.bufnr, { value = entry.value, bufname = self.state.bufname, conv = true })
       end,
     },
+    sorter = conf.generic_sorter(opts),
   }):find()
 end
 

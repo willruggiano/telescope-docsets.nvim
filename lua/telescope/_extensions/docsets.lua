@@ -22,6 +22,7 @@ local config = {
   preview_command = function(entry)
     return { "elinks", "-dump", entry.value.url }
   end,
+  related = {},
 }
 
 ---Escape all wildcard/special characters in a string
@@ -74,7 +75,7 @@ local function run_query(pattern, opts)
     -- N.B. We can only pass a docset if we also pass a pattern
     local lang = format_lang(vim.bo.filetype)
     if lang then
-      args = vim.list_extend(args, { lang })
+      args = vim.list_extend(args, vim.list_extend({ lang }, config.related[vim.bo.filetype] or {}))
     end
   end
 

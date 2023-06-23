@@ -147,16 +147,12 @@ local function find_word_under_cursor(opts)
   run_query(cword, opts)
 end
 
-local function query(opts)
-  run_query(nil, opts)
-end
-
 return telescope.register_extension {
   setup = function(opts)
     config = vim.tbl_extend("force", config, opts)
   end,
   exports = {
     find_word_under_cursor = find_word_under_cursor,
-    query = query,
+    query = run_query,
   },
 }

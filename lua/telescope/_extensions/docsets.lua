@@ -42,7 +42,7 @@ local function format_lang(ft)
   return escape(ft)
 end
 
-local function run_query(pattern, opts)
+local function run_query(args, opts)
   opts = opts or {}
 
   local query_command = assert(opts.query_command or config.query_command, "Must pass `query_command`")
@@ -68,26 +68,13 @@ local function run_query(pattern, opts)
   assert(type(preview_command) == "function", "`preview_command` must be a function")
 
   local lines = {}
-  local args = {}
-  pattern = pattern or " " -- N.B. Whitespace is a wildcard
-  if pattern then
-    args = vim.list_extend(args, { pattern })
-    -- N.B. We can only pass a docset if we also pass a pattern
-    local lang = format_lang(vim.bo.filetype)
-    if lang then
-      args = vim.list_extend(args, vim.list_extend({ lang }, config.related[vim.bo.filetype] or {}))
-    end
-  end
-
-  Job
-    :new({
-      command = query_command(opts),
-      args = args,
-      on_stdout = function(_, data, _)
-        table.insert(lines, data)
-      end,
-    })
-    :sync()
+  Job:new({
+    command = query_command(opts),
+    args = args,
+    on_stdout = function(_, data, _)
+      table.insert(lines, data)
+    end,
+  }):sync()
 
   local results = {}
   for i = 1, #lines, 4 do
@@ -116,35 +103,43 @@ local function run_query(pattern, opts)
     return true
   end
 
-  pickers.new(opts, {
-    prompt_title = "~ docsets ~",
-    attach_mappings = attach_mappings,
-    finder = finders.new_table {
-      results = results,
-      entry_maker = function(entry)
-        return {
-          value = entry,
-          display = entry.name,
-          ordinal = entry.name,
-        }
-      end,
-    },
-    previewer = previewers.new_buffer_previewer {
-      get_buffer_by_name = function(_, entry)
-        return entry.value.url
-      end,
-      define_preview = function(self, entry, _)
-        local command = preview_command(entry)
-        putils.job_maker(command, self.state.bufnr, { value = entry.value, bufname = self.state.bufname, conv = true })
-      end,
-    },
-    sorter = conf.generic_sorter(opts),
-  }):find()
+  pickers
+    .new(opts, {
+      prompt_title = "~ docsets ~",
+      attach_mappings = attach_mappings,
+      finder = finders.new_table {
+        results = results,
+        entry_maker = function(entry)
+          return {
+            value = entry,
+            display = entry.name,
+            ordinal = entry.name,
+          }
+        end,
+      },
+      previewer = previewers.new_buffer_previewer {
+        get_buffer_by_name = function(_, entry)
+          return entry.value.url
+        end,
+        define_preview = function(self, entry, _)
+          local command = preview_command(entry)
+          putils.job_maker(
+            command,
+            self.state.bufnr,
+            { value = entry.value, bufname = self.state.bufname, conv = true }
+          )
+        end,
+      },
+      sorter = conf.generic_sorter(opts),
+    })
+    :find()
 end
 
 local function find_word_under_cursor(opts)
-  local cword = vim.fn.expand "<cword>"
-  run_query(cword, opts)
+  local args = {}
+  table.insert(args, vim.fn.expand "<cword")
+  table.insert(args, format_lang(vim.bo.filetype))
+  run_query(vim.list_extend(args, config.related[vim.bo.filetype] or {}), opts)
 end
 
 return telescope.register_extension {
